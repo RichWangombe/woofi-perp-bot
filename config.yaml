@@ -1,0 +1,22 @@
+mode: paper
+strategy: liquidity_gap
+markets: ["ETH-USDT"]
+order_size: 50.0
+loop_interval_ms: 1000
+exchange: paper
+
+risk:
+  max_exposure_usd: 500.0
+  stop_loss_pct: 1.0
+  take_profit_pct: 2.0
+  daily_loss_limit_pct: 5.0
+
+strategy_params:
+  liquidity_gap:
+    min_spread_pct: 0.15
+    hold_time_sec: 60
+
+backtest:
+  data_dir: data/sample_candles
+  timeframe: 1m
+  fee_bps: 2.0

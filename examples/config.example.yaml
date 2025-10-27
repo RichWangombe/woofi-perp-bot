@@ -1,0 +1,39 @@
+mode: paper   # paper | backtest
+strategy: liquidity_gap  # liquidity_gap | mean_reversion | trend_follower
+markets:
+  - ETH-USDT
+order_size: 50.0          # quote size in USDT
+loop_interval_ms: 1000
+exchange: paper            # paper | woofi-paper (live market data + paper exec)
+
+risk:
+  max_exposure_usd: 500.0
+  stop_loss_pct: 1.0        # percent
+  take_profit_pct: 2.0      # percent
+  daily_loss_limit_pct: 5.0 # percent of starting equity
+
+strategy_params:
+  liquidity_gap:
+    min_spread_pct: 0.15
+    hold_time_sec: 60
+  mean_reversion:
+    fast_ma: 10
+    slow_ma: 30
+  trend_follower:
+    lookback: 50
+
+backtest:
+  data_dir: data/sample_candles
+  timeframe: 1m
+  fee_bps: 2.0
+
+woofi:
+  poll_interval_ms: 800
+  rest_orderbook: "https://api.example.com/v1/orderbook/{symbol}"
+  rest_ticker: "https://api.example.com/v1/ticker/{symbol}"
+
+logging:
+  backend: sqlite   # sqlite | csv
+  trades_csv_path: logs/trades.csv
+  equity_csv_path: logs/equity.csv
+  sqlite_path: logs/trading.db
