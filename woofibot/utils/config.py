@@ -26,6 +26,8 @@ class WOOFiConfig(BaseModel):
     poll_interval_ms: int = 1000
     rest_orderbook: Optional[str] = None
     rest_ticker: Optional[str] = None
+    rest_bookticker: Optional[str] = None
+    simulate_latency_ms: int = 0
 
 
 class LoggingConfig(BaseModel):

@@ -48,6 +48,8 @@ def main():
                 rest_ticker=cfg.woofi.rest_ticker or None,
                 symbols=cfg.markets,
                 poll_interval_ms=cfg.woofi.poll_interval_ms,
+                rest_bookticker=getattr(cfg.woofi, "rest_bookticker", None) or None,
+                simulate_latency_ms=getattr(cfg.woofi, "simulate_latency_ms", 0),
             )
             exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps, market_data_source=md)
         else:
