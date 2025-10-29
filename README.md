@@ -56,7 +56,7 @@ woofi-perp-bot/
       portfolio.py
       exchange_base.py
       paper_exchange.py
-      woofi_exchange.py      # stub
+      woofi_exchange.py      # live REST client (testnet default)
     risk/
       risk_manager.py
     strategies/
@@ -113,6 +113,28 @@ CSV columns written by the bot:
 - Add strategies in `woofibot/strategies/` by subclassing `StrategyBase`.
 - Implement real WOOFi integration in `woofibot/core/woofi_exchange.py`.
 - Add dashboards (Streamlit) and log sinks as needed.
+
+## Live mode (WOOFi Pro) — Safety & How to enable
+
+WARNING: Live trading affects real funds. Test on testnet first and set conservative risk caps.
+
+1) Environment variables (required)
+   - `WOOFI_API_KEY`
+   - `WOOFI_API_SECRET`
+
+2) Config toggle
+   - Set `exchange: woofi-live` in `config.yaml` (defaults remain paper/woofi-paper)
+   - Keep risk caps: `risk.max_exposure_usd`, `stop_loss_pct`, `take_profit_pct`, `max_position_age_sec`
+
+3) Run (testnet default)
+```bash
+python run.py --config config.yaml
+```
+
+Notes
+- The live client defaults to Orderly/WOOFi testnet base URL.
+- Orders are also mirrored to a local paper portfolio for logging and PnL tracking.
+- Do NOT switch to mainnet until you verify endpoints and protections on testnet.
 
 ## License
 

@@ -39,10 +39,26 @@ def main():
             equity_path=getattr(cfg.logging, "equity_csv_path", "logs/equity.csv"),
         )
 
+    live_client = None
     if cfg.mode == "backtest":
         exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps)
     else:
-        if getattr(cfg, "exchange", "paper") == "woofi-paper":
+        ex_kind = getattr(cfg, "exchange", "paper")
+        if ex_kind == "woofi-live":
+            # Use WOOFi poller for live prices, keep PaperExchange as a shadow portfolio/logging engine
+            md = WOOFiPollAdapter(
+                rest_orderbook=cfg.woofi.rest_orderbook or "",
+                rest_ticker=cfg.woofi.rest_ticker or None,
+                symbols=cfg.markets,
+                poll_interval_ms=cfg.woofi.poll_interval_ms,
+                rest_bookticker=getattr(cfg.woofi, "rest_bookticker", None) or None,
+                rest_pricechanges=getattr(cfg.woofi, "rest_pricechanges", None) or None,
+                simulate_latency_ms=getattr(cfg.woofi, "simulate_latency_ms", 0),
+            )
+            exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps, market_data_source=md)
+            # instantiate live REST client (defaults to testnet; requires env keys)
+            live_client = WOOFiExchange()
+        elif ex_kind == "woofi-paper":
             md = WOOFiPollAdapter(
                 rest_orderbook=cfg.woofi.rest_orderbook or "",
                 rest_ticker=cfg.woofi.rest_ticker or None,
@@ -81,6 +97,13 @@ def main():
             # ---- auto-close check ----
             close_od = risk_mgr.check_auto_close(prices)
             if close_od:
+                # send live close first (if enabled), then shadow it locally
+                if live_client:
+                    try:
+                        live_client.place_order(close_od["symbol"], close_od["side"], close_od["qty_quote"])
+                        logger.info(f"LIVE_SENT close: {close_od}")
+                    except Exception as e:
+                        logger.warning(f"LIVE_CLOSE_FAILED: {e}")
                 res = exch.place_order(close_od["symbol"], close_od["side"], close_od["qty_quote"])
                 trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
                 logger.info(f"Auto-closed: {res} reason={close_od['reason']}\n")
@@ -90,6 +113,12 @@ def main():
                 if risk_mgr.can_trade(prices, order_notional):
                     orders = strat.on_tick(prices, exch, risk_mgr)
                     for od in orders:
+                        if live_client:
+                            try:
+                                live_client.place_order(od["symbol"], od["side"], od["qty_quote"])
+                                logger.info(f"LIVE_SENT: {od}")
+                            except Exception as e:
+                                logger.warning(f"LIVE_SEND_FAILED: {e}")
                         res = exch.place_order(od["symbol"], od["side"], od["qty_quote"])
                         trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
                         logger.info(f"Filled: {res}\n")
