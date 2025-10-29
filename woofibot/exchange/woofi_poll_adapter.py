@@ -26,11 +26,13 @@ class WOOFiPollAdapter:
         symbols: List[str],
         poll_interval_ms: int = 1000,
         rest_bookticker: Optional[str] = None,
+        rest_pricechanges: Optional[str] = None,
         simulate_latency_ms: int = 0,
     ):
         self.rest_orderbook = rest_orderbook or ""
         self.rest_ticker = rest_ticker or ""
         self.rest_bookticker = rest_bookticker or ""
+        self.rest_pricechanges = rest_pricechanges or ""
         self.symbols = symbols
         self.poll_interval_ms = poll_interval_ms
         self.simulate_latency_ms = simulate_latency_ms
@@ -110,6 +112,33 @@ class WOOFiPollAdapter:
                         bb = last
                     if ba is None:
                         ba = last
+            except Exception:
+                pass
+
+        # Attempt 4: price_changes list endpoint (data.rows with last_price)
+        if (bb is None or ba is None) and self.rest_pricechanges:
+            try:
+                purl = self.rest_pricechanges
+                r4 = requests.get(purl, timeout=5)
+                r4.raise_for_status()
+                td4 = r4.json()
+                rows = None
+                if isinstance(td4, dict):
+                    data = td4.get("data") if isinstance(td4.get("data"), dict) else None
+                    rows = (data.get("rows") if data else None) or td4.get("rows")
+                if isinstance(rows, list):
+                    for row in rows:
+                        try:
+                            if row.get("symbol") == symbol:
+                                last_p = _to_float(row.get("last_price") or row.get("last") or row.get("price"))
+                                if last_p is not None:
+                                    if bb is None:
+                                        bb = last_p
+                                    if ba is None:
+                                        ba = last_p
+                                break
+                        except Exception:
+                            continue
             except Exception:
                 pass
 

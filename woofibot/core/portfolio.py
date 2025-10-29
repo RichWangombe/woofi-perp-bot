@@ -1,11 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Dict
+import time
 
 
 @dataclass
 class Position:
     qty: float = 0.0  # base units
     avg_price: float = 0.0
+    ts: float = 0.0  # timestamp of last open/increase
 
 
 @dataclass
@@ -13,6 +15,7 @@ class Portfolio:
     cash_usd: float = 1000.0
     positions: Dict[str, Position] = field(default_factory=dict)
     realized_pnl_usd: float = 0.0
+    _latest_prices: Dict[str, float] = field(default_factory=dict)
 
     def update_fill(self, symbol: str, side: str, qty_base: float, price: float, fee: float):
         pos = self.positions.get(symbol, Position())
@@ -37,6 +40,7 @@ class Portfolio:
                 else:  # was flat
                     pos.qty = qty_base
                     pos.avg_price = price
+                    pos.ts = time.time()
         else:  # sell
             # Cash inflow for sells
             self.cash_usd += qty_base * price
@@ -58,6 +62,7 @@ class Portfolio:
         # Deduct fee from cash
         self.cash_usd -= fee
         self.realized_pnl_usd += realized_delta
+        pos.ts = time.time()  # update timestamp whenever fill occurs
         self.positions[symbol] = pos
         return {
             "realized_delta": realized_delta,
@@ -77,3 +82,29 @@ class Portfolio:
             mark = prices.get(sym, pos.avg_price)
             u += pos.qty * (mark - pos.avg_price)
         return u
+
+    def open_notional(self, prices: Dict[str, float]) -> float:
+        """Absolute USD exposure of all open positions (long + short)."""
+        notional = 0.0
+        for sym, pos in self.positions.items():
+            mark = prices.get(sym, pos.avg_price)
+            notional += abs(pos.qty) * mark
+        return notional
+
+    # ---- helpers for risk manager ----
+    def update_mark(self, symbol: str, price: float):
+        self._latest_prices[symbol] = price
+
+    def latest_prices(self) -> Dict[str, float]:
+        return self._latest_prices
+
+    def position_snapshot(self):
+        for sym, pos in self.positions.items():
+            if pos.qty != 0:
+                return {
+                    "symbol": sym,
+                    "qty": pos.qty,
+                    "avg": pos.avg_price,
+                    "ts": pos.ts,
+                }
+        return None

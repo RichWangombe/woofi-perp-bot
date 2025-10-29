@@ -1,19 +1,21 @@
 mode: paper
 strategy: liquidity_gap
-markets: ["ETHUSDT", "BTCUSDT"]
-order_size: 100.0
-loop_interval_ms: 800
+markets: ["PERP_ETH_USDC"]
+order_size: 300.0
+loop_interval_ms: 600
 exchange: woofi-paper
 
 risk:
-  max_exposure_usd: 500.0
+  max_exposure_usd: 300.0
   stop_loss_pct: 1.0
   take_profit_pct: 2.0
   daily_loss_limit_pct: 5.0
+  max_notional_per_trade: 300.0
+  max_position_age_sec: 60
 
 strategy_params:
   liquidity_gap:
-    min_spread_pct: 0.0002   # 0.0002 %  (2 bps)
+    min_spread_pct: 0.0   # 0.005 %  (2 bps)
     hold_time_sec: 15
 
 backtest:
@@ -28,6 +30,8 @@ logging:
 woofi:
   poll_interval_ms: 800
   simulate_latency_ms: 50
-  rest_orderbook: "https://fapi.binance.com/fapi/v1/depth?symbol={symbol}&limit=5"
-  rest_bookticker: "https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol={symbol}"
-  rest_ticker: "https://fapi.binance.com/fapi/v1/ticker/price?symbol={symbol}"
+  rest_orderbook: ""
+  rest_bookticker: ""
+  rest_ticker: ""
+  # fallback that we confirmed works on Orderly testnet
+  rest_pricechanges: "https://testnet-api-evm.orderly.org/v1/public/market_info/price_changes"

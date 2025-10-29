@@ -9,9 +9,11 @@ import os
 
 class RiskConfig(BaseModel):
     max_exposure_usd: float = 0.0
+    max_notional_per_trade: float = 0.0
     stop_loss_pct: float = 0.0
     take_profit_pct: float = 0.0
     daily_loss_limit_pct: float = 0.0
+    max_position_age_sec: int | None = None
 
 
 class BacktestConfig(BaseModel):
@@ -27,6 +29,7 @@ class WOOFiConfig(BaseModel):
     rest_orderbook: Optional[str] = None
     rest_ticker: Optional[str] = None
     rest_bookticker: Optional[str] = None
+    rest_pricechanges: Optional[str] = None
     simulate_latency_ms: int = 0
 
 

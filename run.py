@@ -49,6 +49,7 @@ def main():
                 symbols=cfg.markets,
                 poll_interval_ms=cfg.woofi.poll_interval_ms,
                 rest_bookticker=getattr(cfg.woofi, "rest_bookticker", None) or None,
+                rest_pricechanges=getattr(cfg.woofi, "rest_pricechanges", None) or None,
                 simulate_latency_ms=getattr(cfg.woofi, "simulate_latency_ms", 0),
             )
             exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps, market_data_source=md)
@@ -73,18 +74,33 @@ def main():
         while True:
             exch.step()
             prices = exch.get_prices()
+            # update marks in portfolio for risk calculations
+            for sym, mk in prices.items():
+                exch.portfolio.update_mark(sym, mk)
+
+            # ---- auto-close check ----
+            close_od = risk_mgr.check_auto_close(prices)
+            if close_od:
+                res = exch.place_order(close_od["symbol"], close_od["side"], close_od["qty_quote"])
+                trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
+                logger.info(f"Auto-closed: {res} reason={close_od['reason']}\n")
+            else:
+                # ---- trading block ----
+                order_notional = cfg.order_size
+                if risk_mgr.can_trade(prices, order_notional):
+                    orders = strat.on_tick(prices, exch, risk_mgr)
+                    for od in orders:
+                        res = exch.place_order(od["symbol"], od["side"], od["qty_quote"])
+                        trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
+                        logger.info(f"Filled: {res}\n")
+
+            # ---- equity snapshot AFTER potential fills ----
+            prices = exch.get_prices()  # refresh marks in case fills affected state
             equity = exch.portfolio.equity(prices)
             cash = exch.portfolio.cash_usd
             realized_total = exch.portfolio.realized_pnl_usd
             unrealized = exch.portfolio.unrealized_total(prices)
             trade_logger.log_equity(equity, cash, realized_total=realized_total, unrealized=unrealized)
-            if risk_mgr.can_trade(prices):
-                orders = strat.on_tick(prices, exch, risk_mgr)
-                for od in orders:
-                    res = exch.place_order(od["symbol"], od["side"], od["qty_quote"])
-                    # log after fill (res already includes post-fill snapshots)
-                    trade_logger.log_trade(res, equity=equity, cash=cash)
-                    logger.info(f"Filled: {res}\n")
             time.sleep(cfg.loop_interval_ms / 1000.0)
     except KeyboardInterrupt:
         logger.info("Stopped.")
