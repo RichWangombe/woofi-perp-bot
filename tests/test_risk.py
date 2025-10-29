@@ -6,6 +6,7 @@ class DummyPF:
     def __init__(self):
         # one open position sized to ~1000 USD notional
         self.positions = {"PERP_ETH_USDC": type("P", (), {"qty": 0.5, "avg_price": 2000.0, "ts": time.time()-120})()}
+        self.cash_usd = 1000.0
     def open_notional(self, _):
         return 0.5 * 2000
     def equity(self, _):

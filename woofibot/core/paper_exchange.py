@@ -39,6 +39,15 @@ class PaperExchange(ExchangeBase):
     def place_order(self, symbol: str, side: str, qty_quote: float, price: Optional[float] = None) -> Dict:
         best_bid, best_ask = self.get_orderbook(symbol)
         trade_price = best_ask if side == "buy" else best_bid
+        mid = (best_bid + best_ask) / 2.0 if best_bid is not None and best_ask is not None else trade_price
+        # positive bps means worse than mid for both sides
+        if mid and mid > 0:
+            if side == "buy":
+                slippage_bps = ((trade_price - mid) / mid) * 10000.0
+            else:
+                slippage_bps = ((mid - trade_price) / mid) * 10000.0
+        else:
+            slippage_bps = 0.0
         qty_base = qty_quote / trade_price if trade_price > 0 else 0
         fee = abs(qty_quote) * (self.fee_bps / 10000.0)
         info = self.portfolio.update_fill(symbol, side, qty_base, trade_price, fee)
@@ -48,6 +57,8 @@ class PaperExchange(ExchangeBase):
             "symbol": symbol,
             "side": side,
             "price": trade_price,
+            "mid": mid,
+            "slippage_bps": slippage_bps,
             "qty_quote": qty_quote,
             "fee": fee,
             "realized_delta": info.get("realized_delta", 0.0),

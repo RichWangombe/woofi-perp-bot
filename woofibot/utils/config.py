@@ -31,6 +31,8 @@ class WOOFiConfig(BaseModel):
     rest_bookticker: Optional[str] = None
     rest_pricechanges: Optional[str] = None
     simulate_latency_ms: int = 0
+    order_base_url: Optional[str] = None
+    testnet: bool = True
 
 
 class LoggingConfig(BaseModel):
@@ -40,18 +42,26 @@ class LoggingConfig(BaseModel):
     sqlite_path: str = "logs/trading.db"
 
 
+class TIConfig(BaseModel):
+    """Competition tuning knobs to avoid spam and improve TI."""
+    min_order_notional: float = 50.0
+    min_hold_time_sec: int = 30
+    min_trade_interval_sec: int = 10
+
+
 class Config(BaseModel):
     mode: str
     strategy: str
     markets: List[str]
     order_size: float
     loop_interval_ms: int = 1000
-    exchange: str = "paper"  # paper | woofi-paper | woofi-live (future)
+    exchange: str = "paper"  # paper | woofi-paper | woofi-live
     risk: RiskConfig = RiskConfig()
     strategy_params: Dict[str, Any] = {}
     backtest: BacktestConfig = BacktestConfig()
     woofi: WOOFiConfig = WOOFiConfig()
     logging: LoggingConfig = LoggingConfig()
+    ti: TIConfig = TIConfig()
 
 
 def load_config(path: str) -> Config:

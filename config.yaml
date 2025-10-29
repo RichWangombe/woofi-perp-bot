@@ -13,6 +13,11 @@ risk:
   max_notional_per_trade: 300.0
   max_position_age_sec: 60
 
+ti:
+  min_order_notional: 100.0
+  min_hold_time_sec: 30
+  min_trade_interval_sec: 10
+
 strategy_params:
   liquidity_gap:
     min_spread_pct: 0.0   # 0.005 %  (2 bps)
@@ -35,3 +40,5 @@ woofi:
   rest_ticker: ""
   # fallback that we confirmed works on Orderly testnet
   rest_pricechanges: "https://testnet-api-evm.orderly.org/v1/public/market_info/price_changes"
+  testnet: true
+  order_base_url: ""

@@ -18,7 +18,7 @@ class TradeLogger:
             with self.trades_path.open("w", newline="", encoding="utf-8") as f:
                 w = csv.writer(f)
                 w.writerow([
-                    "ts","symbol","side","price","qty_quote","fee",
+                    "ts","symbol","side","price","mid","slippage_bps","qty_quote","fee",
                     "realized_delta","realized_total","unrealized",
                     "equity_after","cash_after","pos_qty","pos_avg"
                 ])
@@ -38,6 +38,8 @@ class TradeLogger:
                 trade.get("symbol"),
                 trade.get("side"),
                 trade.get("price"),
+                trade.get("mid", ""),
+                trade.get("slippage_bps", ""),
                 trade.get("qty_quote"),
                 trade.get("fee", 0.0),
                 trade.get("realized_delta", ""),

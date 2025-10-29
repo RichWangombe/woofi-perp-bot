@@ -9,6 +9,7 @@ from woofibot.core.woofi_exchange import WOOFiExchange
 from woofibot.exchange.woofi_poll_adapter import WOOFiPollAdapter
 from woofibot.strategies import LiquidityGapStrategy, MeanReversionStrategy, TrendFollowerStrategy
 from woofibot.risk.risk_manager import RiskManager
+from woofibot.risk.ti_policy import TIPolicy
 from woofibot.backtest.engine import run_backtest
 
 
@@ -40,6 +41,7 @@ def main():
         )
 
     live_client = None
+    ti_policy = TIPolicy(cfg.ti)
     if cfg.mode == "backtest":
         exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps)
     else:
@@ -56,8 +58,8 @@ def main():
                 simulate_latency_ms=getattr(cfg.woofi, "simulate_latency_ms", 0),
             )
             exch = PaperExchange(cfg.markets, cfg.backtest.data_dir, cfg.backtest.fee_bps, market_data_source=md)
-            # instantiate live REST client (defaults to testnet; requires env keys)
-            live_client = WOOFiExchange()
+            # instantiate live REST client (testnet defaults; requires env keys)
+            live_client = WOOFiExchange(base_url=(cfg.woofi.order_base_url or None), testnet=getattr(cfg.woofi, "testnet", True))
         elif ex_kind == "woofi-paper":
             md = WOOFiPollAdapter(
                 rest_orderbook=cfg.woofi.rest_orderbook or "",
@@ -105,6 +107,7 @@ def main():
                     except Exception as e:
                         logger.warning(f"LIVE_CLOSE_FAILED: {e}")
                 res = exch.place_order(close_od["symbol"], close_od["side"], close_od["qty_quote"])
+                ti_policy.record_fill(close_od["symbol"])
                 trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
                 logger.info(f"Auto-closed: {res} reason={close_od['reason']}\n")
             else:
@@ -113,6 +116,9 @@ def main():
                 if risk_mgr.can_trade(prices, order_notional):
                     orders = strat.on_tick(prices, exch, risk_mgr)
                     for od in orders:
+                        # TI policy filters to avoid spam / ping-pong / micro trades
+                        if not ti_policy.allow_signal(od, exch.portfolio, prices):
+                            continue
                         if live_client:
                             try:
                                 live_client.place_order(od["symbol"], od["side"], od["qty_quote"])
@@ -120,6 +126,7 @@ def main():
                             except Exception as e:
                                 logger.warning(f"LIVE_SEND_FAILED: {e}")
                         res = exch.place_order(od["symbol"], od["side"], od["qty_quote"])
+                        ti_policy.record_fill(od["symbol"]) 
                         trade_logger.log_trade(res, equity=res.get("equity_after"), cash=res.get("cash_after"))
                         logger.info(f"Filled: {res}\n")
 
